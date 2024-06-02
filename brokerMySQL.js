@@ -15,26 +15,26 @@ db.connect(function (err) {
     console.log('Database connected!');
 });
 
-var dataBuffer = [];
+var lastData = null;
 
-// Function to save data to database
-function saveDataToDatabase() {
-    if (dataBuffer.length > 0) {
-        var dbStat = 'INSERT INTO mqttJS (humidity, temperatureC, temperatureF, H2, CH4) VALUES ?';
-        var values = dataBuffer.map(data => [data.humidity, data.temperatureC, data.temperatureF, data.H2, data.CH4]);
-        db.query(dbStat, [values], function (error, results) {
+// Function to save the last data to database
+function saveLastDataToDatabase() {
+    if (lastData) {
+        var dbStat = 'INSERT INTO sensorreceives (humidity, temperatureC, temperatureF, H2, CH4) VALUES (?, ?, ?, ?, ?)';
+        var values = [lastData.humidity, lastData.temperatureC, lastData.temperatureF, lastData.H2, lastData.CH4];
+        db.query(dbStat, values, function (error, results) {
             if (error) {
                 console.error('Error saving data to database:', error);
             } else {
                 console.log('Data saved to database!');
-                dataBuffer = []; // Clear buffer after saving to database
+                lastData = null; // Clear lastData after saving to database
             }
         });
     }
 }
 
 // Schedule data saving every 1 minute
-setInterval(saveDataToDatabase, 60000); // 60000 ms = 1 minute
+setInterval(saveLastDataToDatabase, 60000); // 60000 ms = 1 minute
 
 broker.on('ready', function () {
     console.log('Broker is ready!');
@@ -48,7 +48,7 @@ broker.on('published', function (packet, client) {
     if (message.startsWith('{')) {
         try {
             var data = JSON.parse(message);
-            dataBuffer.push(data); // Add data to buffer
+            lastData = data; // Update lastData with the latest received data
         } catch (e) {
             console.error('Error parsing JSON:', e);
         }
